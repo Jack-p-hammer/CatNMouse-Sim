@@ -45,8 +45,8 @@ class Mouse(Thing):
     def evalf(self, u, t):
         x = u[0]
         y = u[1]
-        dx = np.cos(2*np.pi*t)
-        dy = np.sin(2*np.pi*t)
+        dx = 1
+        dy = 2*np.cos(1000*t)
         return [dx, dy]
     
 class Cat(Thing):
@@ -77,7 +77,7 @@ class Cat(Thing):
         dx += self.D_coeff*Dx
         dy += self.D_coeff*Dy
         
-        max_c = 20
+        max_c = 25
         if dx > max_c:
             dx = max_c
         if dx < -max_c:
