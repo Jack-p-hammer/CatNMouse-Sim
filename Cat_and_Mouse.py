@@ -60,7 +60,10 @@ class Cat(Thing):
         self.P_coeff = 4
         self.I_coeff = 1.5
         self.D_coeff = .075
-        
+
+        self.I_windup_limit = 10
+        self.actuator_limit = 25
+
         Cat.listCat.append(self)
         
     def evalf(self, u, t):
@@ -77,7 +80,8 @@ class Cat(Thing):
         dx += self.D_coeff*Dx
         dy += self.D_coeff*Dy
         
-        max_c = 25
+        max_c = self.actuator_limit
+        # Limit the actuator output
         if dx > max_c:
             dx = max_c
         if dx < -max_c:
@@ -93,6 +97,10 @@ class Cat(Thing):
         diffx, diffy = self.get_distance(False)
         self.I_total[0] += diffx*self.dt
         self.I_total[1] += diffy*self.dt
+        # Wind up limitations
+        self.I_total[0] = np.clip(self.I_total[0], -self.I_windup_limit, self.I_windup_limit)
+        self.I_total[1] = np.clip(self.I_total[1], -self.I_windup_limit, self.I_windup_limit)
+        print(self.I_total)
         
     def derivative(self):
         self.D_total[0][0] = self.D_total[0][1]
@@ -146,7 +154,7 @@ def animate(i):
     Alist  = Am.get_pos()
     check = np.isclose(a = Rlist, b = Alist, atol = .05, rtol = 0)
 
-    print(f"Rus: {Rlist}, Am: {Alist}, check: {check}")
+    # print(f"Rus: {Rlist}, Am: {Alist}, check: {check}")
     
     if idx == 500:
         plt.close()
@@ -161,7 +169,7 @@ plt.show()
 end = time.time()
 timed = end - start
 
-print("----------------------------------------")
+print("\n\n\n\n\n\n\n\n\n----------------------------------------\n")
 if not Intercepted:
     print(f"Am intercepted Rus at time: {timed}")
 else:
