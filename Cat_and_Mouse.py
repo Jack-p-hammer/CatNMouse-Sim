@@ -48,23 +48,23 @@ class Mouse(Thing):
         x = u[0]
         y = u[1]
         dx = 1
-        dy = 2*np.cos(1000*t)
+        dy = 2*np.exp(100*t)*np.cos(1000*t)
         return [dx, dy]
     
 class Cat(Thing):
     listCat = []
-    def __init__(self, x_0, y_0, chasing):
+    def __init__(self, x_0, y_0, chasing, PID_coeffs = [4,4,.075], I_windup_limit = 20, actuator_limit = 25):
         super().__init__(x_0, y_0)
         self.chasing = chasing
         self.I_total = [0,0]
         self.D_total = [[0,0], # x's
                         [0,0]] # y's
-        self.P_coeff = 4
-        self.I_coeff = 1.5
-        self.D_coeff = .075
+        self.P_coeff = PID_coeffs[0]
+        self.I_coeff = PID_coeffs[1]
+        self.D_coeff = PID_coeffs[2]
 
-        self.I_windup_limit = 20
-        self.actuator_limit = 25
+        self.I_windup_limit = I_windup_limit
+        self.actuator_limit = actuator_limit
 
         Cat.listCat.append(self)
         
@@ -169,7 +169,7 @@ plt.ion()  # Turn on interactive mode
 Rus = Mouse(0,0)
 x = random.uniform(-5,5)
 y = random.uniform(-5,5)
-Am = Cat(x,y, Rus)
+Am = Cat(x,y, Rus, PID_coeffs = [4,4,.075], I_windup_limit = 20, actuator_limit = 25)
 times = np.linspace(0,10,N)
 lims = 5
 distances = []
@@ -190,8 +190,9 @@ def update(i):
     Adis = Am.get_distance(True)
     if not Intercepted:
         distances.append(Adis)
+        distance_str = f"{Adis:.3f}"
     else:
-        Adis = "Intercepted"
+        distance_str = "Intercepted"
             
     idx = Rus.count    
     mouse_line = ax.plot(Rus.get_states()[:idx,0], Rus.get_states()[:idx,1], color = "red", label="Mouse")
@@ -219,7 +220,7 @@ Limits:
 I Windup: ±{Am.I_windup_limit}
 Actuator: ±{Am.actuator_limit}
 
-Distance: {Adis:.3f}
+Distance: {distance_str}
 """
     
     # Add interception message if intercepted
