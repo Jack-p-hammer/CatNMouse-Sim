@@ -165,6 +165,7 @@ class Cat(Thing):
         return dx, dy
 
 fig, ax = plt.subplots(figsize=(10, 8))
+plt.ion()  # Turn on interactive mode
 Rus = Mouse(0,0)
 x = random.uniform(-5,5)
 y = random.uniform(-5,5)
@@ -193,11 +194,6 @@ def update(i):
     idx = Rus.count    
     mouse_line = ax.plot(Rus.get_states()[:idx,0], Rus.get_states()[:idx,1], color = "red", label="Mouse")
     cat_line = ax.plot(Am.get_states()[:idx,0], Am.get_states()[:idx,1], color = "blue", label="Cat")
-    # Add a marker to the tip of the cat and mouse
-    cat_marker = ax.scatter(Am.get_pos()[0], Am.get_pos()[1], color = "blue", marker = "o", label="Cat")
-    mouse_marker = ax.scatter(Rus.get_pos()[0], Rus.get_pos()[1], color = "red", marker = "o", label="Mouse")
-
-
     ax.grid(True)
     ax.legend()
     
@@ -205,22 +201,22 @@ def update(i):
     P_x, P_y, I_x, I_y, D_x, D_y = Am.get_pid_values()
     act_x, act_y = Am.get_actuator_values()
     pid_text = f"""PID Values:
-                P: ({P_x:.2f}, {P_y:.2f})
-                I: ({I_x:.2f}, {I_y:.2f})
-                D: ({D_x:.2f}, {D_y:.2f})
+P: ({P_x:.2f}, {P_y:.2f})
+I: ({I_x:.2f}, {I_y:.2f})
+D: ({D_x:.2f}, {D_y:.2f})
 
-                Actuator Output:
-                X: {act_x:.2f}
-                Y: {act_y:.2f}
+Actuator Output:
+X: {act_x:.2f}
+Y: {act_y:.2f}
 
-                Coefficients:
-                P: {Am.P_coeff}, I: {Am.I_coeff}, D: {Am.D_coeff}
+Coefficients:
+P: {Am.P_coeff}, I: {Am.I_coeff}, D: {Am.D_coeff}
 
-                Limits:
-                I Windup: ±{Am.I_windup_limit}
-                Actuator: ±{Am.actuator_limit}
+Limits:
+I Windup: ±{Am.I_windup_limit}
+Actuator: ±{Am.actuator_limit}
 
-                Distance: {Adis:.3f}"""
+Distance: {Adis:.3f}"""
     
     # Add interception message if intercepted
     if Intercepted:
@@ -233,30 +229,30 @@ def update(i):
     Rlist  = Rus.get_pos()
     Alist  = Am.get_pos()
     check = np.isclose(a = Rlist, b = Alist, atol = .05, rtol = 0)
- 
-    if idx == 500:
-        return mouse_line + cat_line + [text_box]
-
+    
     if check[0] and check[1] and not Intercepted:
         Intercepted = True
-        print("Mouse intercepted!")
-        return mouse_line + cat_line + [text_box]
+        print("🎯 Mouse intercepted! Animation will pause on final frame.")
     
-    return mouse_line + cat_line + [text_box]
+    plt.draw()
+    plt.pause(0.001) # Small pause for smooth animation
 
-
-plt.ion()
-plt.show(block=True)
-for i in range(5000):
-    update(i)
-    if Intercepted:
+# Main animation loop
+i = 0
+while i < N and not Intercepted:
+    if not plt.fignum_exists(fig.number):
+        print("Window closed by user.")
         break
+    update(i)
+    i += 1
 
+plt.ioff()
+plt.show(block=True)
 end = time.time()
 timed = end - start
 
 print("\n\n\n\n\n\n\n\n\n----------------------------------------\n")
-if not Intercepted:
+if Intercepted:
     print(f"Am intercepted Rus at time: {timed}")
 else:
     print(f"Not intercepted")
