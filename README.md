@@ -21,3 +21,4 @@ The cat uses these PID coefficients:
 - **P (Proportional)**: Responds to current error
 - **I (Integral)**: Accumulates past errors
 - **D (Derivative)**: Responds to rate of change of error
+<img width="1986" height="1650" alt="image" src="https://github.com/user-attachments/assets/ac18d1e5-f2db-43aa-a8e2-892e26654453" />
