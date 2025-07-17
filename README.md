@@ -10,12 +10,6 @@ This simulation shows how PID control works in practice:
 - **Cat**: Uses PID control to chase and intercept the mouse
 - **Real-time Display**: Shows PID values, actuator outputs, and distance metrics
 
-## How to Run
-
-```bash
-python Cat_and_Mouse.py
-```
-
 ## 🔧 PID Parameters
 
 The cat uses these PID coefficients:
