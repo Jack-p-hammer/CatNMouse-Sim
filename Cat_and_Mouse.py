@@ -102,7 +102,7 @@ class Cat(Thing):
         # Wind up limitations
         self.I_total[0] = np.clip(self.I_total[0], -self.I_windup_limit, self.I_windup_limit)
         self.I_total[1] = np.clip(self.I_total[1], -self.I_windup_limit, self.I_windup_limit)
-        
+
     def derivative(self):
         self.D_total[0][0] = self.D_total[0][1]
         self.D_total[0][1] = self.get_distance(False)[0]
@@ -190,10 +190,13 @@ def update(i):
     Adis = Am.get_distance(True)
     if not Intercepted:
         distances.append(Adis)
+    else:
+        Adis = "Intercepted"
             
     idx = Rus.count    
     mouse_line = ax.plot(Rus.get_states()[:idx,0], Rus.get_states()[:idx,1], color = "red", label="Mouse")
     cat_line = ax.plot(Am.get_states()[:idx,0], Am.get_states()[:idx,1], color = "blue", label="Cat")
+
     ax.grid(True)
     ax.legend()
     
@@ -216,11 +219,12 @@ Limits:
 I Windup: ±{Am.I_windup_limit}
 Actuator: ±{Am.actuator_limit}
 
-Distance: {Adis:.3f}"""
+Distance: {Adis:.3f}
+"""
     
     # Add interception message if intercepted
     if Intercepted:
-        pid_text += "\n\n🎯 INTERCEPTED! 🎯"
+        pid_text += "\n\nINTERCEPTED!"
     
     text_box = ax.text(0.02, 0.98, pid_text, transform=ax.transAxes, 
             verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8),
@@ -229,15 +233,14 @@ Distance: {Adis:.3f}"""
     Rlist  = Rus.get_pos()
     Alist  = Am.get_pos()
     check = np.isclose(a = Rlist, b = Alist, atol = .05, rtol = 0)
-    
     if check[0] and check[1] and not Intercepted:
         Intercepted = True
-        print("🎯 Mouse intercepted! Animation will pause on final frame.")
+        print("Mouse intercepted!")
     
     plt.draw()
-    plt.pause(0.001) # Small pause for smooth animation
+    plt.pause(0.01) # Small pause for smooth animation
 
-# Main animation loop
+# Animation loop
 i = 0
 while i < N and not Intercepted:
     if not plt.fignum_exists(fig.number):
@@ -246,8 +249,8 @@ while i < N and not Intercepted:
     update(i)
     i += 1
 
-plt.ioff()
-plt.show(block=True)
+plt.ioff()  # Turn off interactive mode
+plt.show(block=True)  # Show final result
 end = time.time()
 timed = end - start
 
