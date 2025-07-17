@@ -21,6 +21,8 @@ class Thing():
     def update(self, u, t):
         """Takes in current state u vector and updates based on evalf funciton, increments counter, appends to the states"""
         dF = self.evalf(u, t)
+        if dF is None:
+            return
         dt = self.dt
         self.x += dt*dF[0]
         self.y += dt*dF[1]        
@@ -28,7 +30,7 @@ class Thing():
         self.count += 1
         
     def evalf(self, u, t):
-        NotImplementedError
+        raise NotImplementedError
     
     def get_pos(self):
         return self.pos[self.count-1]
@@ -61,7 +63,7 @@ class Cat(Thing):
         self.I_coeff = 1.5
         self.D_coeff = .075
 
-        self.I_windup_limit = 10
+        self.I_windup_limit = 20
         self.actuator_limit = 25
 
         Cat.listCat.append(self)
@@ -100,7 +102,6 @@ class Cat(Thing):
         # Wind up limitations
         self.I_total[0] = np.clip(self.I_total[0], -self.I_windup_limit, self.I_windup_limit)
         self.I_total[1] = np.clip(self.I_total[1], -self.I_windup_limit, self.I_windup_limit)
-        print(self.I_total)
         
     def derivative(self):
         self.D_total[0][0] = self.D_total[0][1]
@@ -124,8 +125,46 @@ class Cat(Thing):
             Dx = Mx - Sx
             Dy = My - Sy
             return Dx, Dy
+    
+    def get_pid_values(self):
+        """Return current PID values for display"""
+        diffx, diffy = self.get_distance(False)
+        P_x = diffx * self.P_coeff
+        P_y = diffy * self.P_coeff
+        I_x = self.I_coeff * self.I_total[0]
+        I_y = self.I_coeff * self.I_total[1]
+        Dx, Dy = self.derivative()
+        D_x = self.D_coeff * Dx
+        D_y = self.D_coeff * Dy
+        return P_x, P_y, I_x, I_y, D_x, D_y
+    
+    def get_actuator_values(self):
+        """Return current actuator/control effort values"""
+        diffx, diffy = self.get_distance(False)
+        dx = diffx * self.P_coeff
+        dy = diffy * self.P_coeff
+        
+        dx += self.I_coeff * self.I_total[0]
+        dy += self.I_coeff * self.I_total[1]
+        
+        Dx, Dy = self.derivative()
+        dx += self.D_coeff * Dx
+        dy += self.D_coeff * Dy
+        
+        # Apply actuator limits (same as in evalf method)
+        max_c = self.actuator_limit
+        if dx > max_c:
+            dx = max_c
+        if dx < -max_c:
+            dx = -max_c
+        if dy > max_c:
+            dy = max_c
+        if dy < -max_c:
+            dy = -max_c
+            
+        return dx, dy
 
-fig, ax = plt.subplots()
+fig, ax = plt.subplots(figsize=(10, 8))
 Rus = Mouse(0,0)
 x = random.uniform(-5,5)
 y = random.uniform(-5,5)
@@ -135,37 +174,84 @@ lims = 5
 distances = []
 Intercepted = False
 
-def animate(i):
-    Rus.update(Rus.get_pos(), times[i])
-    Am.update(Am.get_pos(), times[i])
+def update(i):
+    global Intercepted
+    
+    # Only update positions if not intercepted
+    if not Intercepted:
+        Rus.update(Rus.get_pos(), times[i])
+        Am.update(Am.get_pos(), times[i])
+    
     ax.clear()
-    ax.set_ylim([-lims,lims])
-    ax.set_xlim([-lims,lims])
+    ax.set_ylim(-lims, lims)
+    ax.set_xlim(-lims, lims)
 
     Adis = Am.get_distance(True)
-    distances.append(Adis)
+    if not Intercepted:
+        distances.append(Adis)
             
     idx = Rus.count    
-    ax.plot(Rus.get_states()[:idx,0], Rus.get_states()[:idx,1], color = "red")
-    ax.plot(Am.get_states()[:idx,0], Am.get_states()[:idx,1], color = "blue")
+    mouse_line = ax.plot(Rus.get_states()[:idx,0], Rus.get_states()[:idx,1], color = "red", label="Mouse")
+    cat_line = ax.plot(Am.get_states()[:idx,0], Am.get_states()[:idx,1], color = "blue", label="Cat")
+    # Add a marker to the tip of the cat and mouse
+    cat_marker = ax.scatter(Am.get_pos()[0], Am.get_pos()[1], color = "blue", marker = "o", label="Cat")
+    mouse_marker = ax.scatter(Rus.get_pos()[0], Rus.get_pos()[1], color = "red", marker = "o", label="Mouse")
+
+
     ax.grid(True)
+    ax.legend()
+    
+    # Add PID values display
+    P_x, P_y, I_x, I_y, D_x, D_y = Am.get_pid_values()
+    act_x, act_y = Am.get_actuator_values()
+    pid_text = f"""PID Values:
+                P: ({P_x:.2f}, {P_y:.2f})
+                I: ({I_x:.2f}, {I_y:.2f})
+                D: ({D_x:.2f}, {D_y:.2f})
+
+                Actuator Output:
+                X: {act_x:.2f}
+                Y: {act_y:.2f}
+
+                Coefficients:
+                P: {Am.P_coeff}, I: {Am.I_coeff}, D: {Am.D_coeff}
+
+                Limits:
+                I Windup: ±{Am.I_windup_limit}
+                Actuator: ±{Am.actuator_limit}
+
+                Distance: {Adis:.3f}"""
+    
+    # Add interception message if intercepted
+    if Intercepted:
+        pid_text += "\n\n🎯 INTERCEPTED! 🎯"
+    
+    text_box = ax.text(0.02, 0.98, pid_text, transform=ax.transAxes, 
+            verticalalignment='top', bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8),
+            fontsize=9, fontfamily='monospace')
     
     Rlist  = Rus.get_pos()
     Alist  = Am.get_pos()
     check = np.isclose(a = Rlist, b = Alist, atol = .05, rtol = 0)
-
-    # print(f"Rus: {Rlist}, Am: {Alist}, check: {check}")
-    
+ 
     if idx == 500:
-        plt.close()
+        return mouse_line + cat_line + [text_box]
 
-    if check[0] and check[1]:
+    if check[0] and check[1] and not Intercepted:
         Intercepted = True
-        plt.close()
+        print("Mouse intercepted!")
+        return mouse_line + cat_line + [text_box]
+    
+    return mouse_line + cat_line + [text_box]
 
-ani = FuncAnimation(fig, animate, frames=5000, interval= 1, repeat = False)
 
-plt.show()
+plt.ion()
+plt.show(block=True)
+for i in range(5000):
+    update(i)
+    if Intercepted:
+        break
+
 end = time.time()
 timed = end - start
 
